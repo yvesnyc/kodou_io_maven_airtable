@@ -1,15 +1,18 @@
 package com.yvesnyc;
 
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.net.http.HttpClient.Version;
-import java.net.http.HttpRequest.BodyPublishers;
-import java.net.http.HttpResponse.BodyHandlers;
-import java.time.Duration;
+
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.client5.http.entity.mime.StringBody;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+
+import java.io.IOException;
 import java.net.URI;
 
-import java.net.http.HttpClient.Redirect;
 
 /**
  * kodou.io example Java functions for writing to Airtable 
@@ -71,7 +74,6 @@ public final class App {
         }
     }
 
-
     /** 
      *   Function to write (fictitious) form 47 contents to an Airtable with a supplied Airtable api id and key 
      * @param api_id Airtable api handle for the account
@@ -84,11 +86,6 @@ public final class App {
     */
     public static int addForm47ToAirtable(String api_id, String api_key, String baseTable, String entryA, String entryB, String entryC) {
 
-        /* client for http calls */
-        HttpClient client = HttpClient.newBuilder()
-        .version(Version.HTTP_1_1)
-        .followRedirects(Redirect.NORMAL)
-        .build();
 
         /*
         This is the json representation of the Airtable record we are creating.
@@ -116,24 +113,27 @@ public final class App {
         .concat("\"gender\" : ").concat(gender)
         .concat("} } ] }");
 
-        /* http request to Airtable  */
-        HttpRequest req = HttpRequest.newBuilder()
-        .uri(URI.create("https://api.airtable.com/v0/".concat(api_id)))
-        .timeout(Duration.ofSeconds(5))
-        .headers("Authorization", "Bearer ".concat(api_key),"Content-Type","application/json")
-        .POST(BodyPublishers.ofString(jsonString))
-        .build();
+        try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()){
 
-        try {
-            HttpResponse<String> response = client.send(req, BodyHandlers.ofString());
-            return response.statusCode();
+            /* http request to Airtable  */
+            HttpPost httpPost= new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id)));
+            httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
+            httpPost.addHeader("Content-Type","application/json");
+            httpPost.setEntity(new StringEntity( jsonString,ContentType.APPLICATION_JSON));
 
-        } catch (Exception ex) {
-            /* 
+            try (CloseableHttpResponse response1 = httpclient.execute(httpPost)) {
+                return response1.getCode();
+            }
+
+        } catch (IOException ex) {
+            /*
             Return a -1 if something other than an http error code results. Could have been an IO failure
             */
+
             return -1;
         }
+
+
     }
 
     /** 
@@ -145,31 +145,27 @@ public final class App {
      *  Return int - Either a http return code from Airtable or -1 if something else went wrong
     */
     public static int addFormXXToAirtable(String api_id, String api_key, String baseTable, String jsonFormat) {
-    
+
         /* client for http calls */
-        HttpClient client = HttpClient.newBuilder()
-        .version(Version.HTTP_1_1)
-        .followRedirects(Redirect.NORMAL)
-        .build();
+        try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()) {
 
-        /* http request to Airtable  */
-        HttpRequest req = HttpRequest.newBuilder()
-        .uri(URI.create("https://api.airtable.com/v0/".concat(api_id)))
-        .timeout(Duration.ofSeconds(5))
-        .headers("Authorization", "Bearer ".concat(api_key),"Content-Type","application/json")
-        .POST(BodyPublishers.ofString(jsonFormat))
-        .build();
+            /* http request to Airtable  */
+            HttpPost httpPost = new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id)));
+            httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
+            httpPost.addHeader("Content-Type", "application/json");
+            httpPost.setEntity(new StringEntity(jsonFormat, ContentType.APPLICATION_JSON));
 
-        try {
-            HttpResponse<String> response = client.send(req, BodyHandlers.ofString());
-            return response.statusCode();
-    
-            } catch (Exception ex) {
-                /* 
-                Return a -1 if something other than an http error code results. Could have been an IO failure
-                */
-                return -1;
+            try (CloseableHttpResponse response1 = httpclient.execute(httpPost)) {
+                return response1.getCode();
             }
+
+        } catch (IOException ex) {
+            /*
+            Return a -1 if something other than an http error code results. Could have been an IO failure
+            */
+
+            return -1;
+        }
     }
 
 }
