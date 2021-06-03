@@ -103,9 +103,16 @@ public final class App {
 
         */
 
+        // Map Form entries EntryA, EntryB, EntryC into the Airtable fields Name, Age, Gender
         String name = "\"".concat(entryA).concat("\""); /* name String surrounded by quotes */
         String age = entryB; /* An integer */
-        String gender = "\"".concat(entryC).concat("\""); /* gender String surrounded by quotes */
+        String gender = "[\"Male\"]"; // Can be Male or Female in Airtable
+
+        if (entryC.equalsIgnoreCase("Female")) { /* Singe array gender String surrounded by quotes */
+            gender = "[\"Female\"]";
+        }
+
+        // "[\"".concat(entryC).concat("\"]");
 
         String jsonString = "{ \"records\" : [ { \"fields\" : {"
         .concat("\"name\" : ").concat(name).concat(",")
