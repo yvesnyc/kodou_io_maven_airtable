@@ -127,10 +127,11 @@ public final class App {
                     .concat("\"Gender\" : ").concat(gender)
                     .concat("} } ] }");
 
+            URI uri = URI.create("https://api.airtable.com/v0/".concat(api_id).concat("/").concat(baseTable));
+
             // Use Java Http Client to send data to Airtable API
             try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()) {
 
-                URI uri = URI.create("https://api.airtable.com/v0/".concat(api_id).concat("/").concat(baseTable));
                 /* http request to Airtable  */
                 HttpPost httpPost = new HttpPost(uri);
                 httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
