@@ -104,7 +104,7 @@ public final class App {
             ]
         }
         */
-        
+
         // Validate data. EntryB aka Age should be positive integer
         Integer  validAge = Ints.tryParse(entryB); // returns null if not valid
 
