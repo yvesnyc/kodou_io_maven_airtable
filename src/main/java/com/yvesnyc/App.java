@@ -1,6 +1,7 @@
 package com.yvesnyc;
 
 
+import com.google.common.primitives.Ints;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
@@ -86,6 +87,8 @@ public final class App {
     */
     public static int addForm47ToAirtable(String api_id, String api_key, String baseTable, String entryA, String entryB, String entryC) {
 
+        // The form field names match the parameters, the data from the web form arrives as arguments
+        // The data will be checked and converted to an Airtable with column names that differ from the web form fields
 
         /*
         This is the json representation of the Airtable record we are creating.
@@ -93,9 +96,9 @@ public final class App {
         { "records" : [
             {
                 "fields" : {
-                    "name" : entryA, 
-                    "age" : entryB, 
-                    "gender" : entryC
+                    "Name" : entryA,
+                    "Age" : entryB,
+                    "Gender" : entryC
                     }
             }
             ]
@@ -103,43 +106,54 @@ public final class App {
 
         */
 
-        // Map Form entries EntryA, EntryB, EntryC into the Airtable fields Name, Age, Gender
-        String name = "\"".concat(entryA).concat("\""); /* name String surrounded by quotes */
-        String age = entryB; /* An integer */
-        String gender = "[\"Male\"]"; // Can be Male or Female in Airtable
 
-        if (entryC.equalsIgnoreCase("Female")) { /* Singe array gender String surrounded by quotes */
-            gender = "[\"Female\"]";
-        }
+        // Validate data. EntryB aka Age should be positive integer
+        Integer  validAge = Ints.tryParse(entryB); // returns null if not valid
 
-        // "[\"".concat(entryC).concat("\"]");
+        if (validAge != null && validAge > 0) {
 
-        String jsonString = "{ \"records\" : [ { \"fields\" : {"
-        .concat("\"name\" : ").concat(name).concat(",")
-        .concat("\"age\" : ").concat(age).concat(",")
-        .concat("\"gender\" : ").concat(gender)
-        .concat("} } ] }");
+            // Map Web form entries EntryA, EntryB, EntryC into the Airtable fields Name, Age, Gender
+            String name = "\"".concat(entryA).concat("\""); /* name String surrounded by quotes */
+            String age = entryB; /* An integer */
 
-        try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()){
-
-            /* http request to Airtable  */
-            HttpPost httpPost= new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id)));
-            httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
-            httpPost.addHeader("Content-Type","application/json");
-            httpPost.setEntity(new StringEntity( jsonString,ContentType.APPLICATION_JSON));
-
-            try (CloseableHttpResponse response1 = httpclient.execute(httpPost)) {
-                return response1.getCode();
+            // Perform some processing of the data
+            String gender = "[\"Male\"]"; // Can be Male or Female in Airtable
+            if (entryC.equalsIgnoreCase("Female")) { /* Singe array gender String surrounded by quotes */
+                gender = "[\"Female\"]";
             }
 
-        } catch (IOException ex) {
-            /*
-            Return a -1 if something other than an http error code results. Could have been an IO failure
-            */
+            // Turn the data into a Json String for Airtable
+            String jsonString = "{ \"records\" : [ { \"fields\" : {"
+                    .concat("\"Name\" : ").concat(name).concat(",")
+                    .concat("\"Age\" : ").concat(age).concat(",")
+                    .concat("\"Gender\" : ").concat(gender)
+                    .concat("} } ] }");
 
+            // Use Java Http Client to send data to Airtable API
+            try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()) {
+
+                /* http request to Airtable  */
+                HttpPost httpPost = new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id).concat("/").concat(baseTable)));
+                httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
+                httpPost.addHeader("Content-Type", "application/json");
+                httpPost.setEntity(new StringEntity(jsonString, ContentType.APPLICATION_JSON));
+
+                try (CloseableHttpResponse response1 = httpclient.execute(httpPost)) {
+                    return response1.getCode();
+                }
+
+            } catch (IOException ex) {
+
+                /*
+                Return a -1 if something other than an http error code results. Could have been an IO failure
+                */
+
+                return -1;
+            }
+
+        } else { // if (validAge ..., not valid data
             return -1;
         }
-
 
     }
 
