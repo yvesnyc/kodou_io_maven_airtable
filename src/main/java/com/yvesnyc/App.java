@@ -103,10 +103,8 @@ public final class App {
             }
             ]
         }
-
         */
-
-
+        
         // Validate data. EntryB aka Age should be positive integer
         Integer  validAge = Ints.tryParse(entryB); // returns null if not valid
 
@@ -132,8 +130,9 @@ public final class App {
             // Use Java Http Client to send data to Airtable API
             try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()) {
 
+                URI uri = URI.create("https://api.airtable.com/v0/".concat(api_id).concat("/").concat(baseTable));
                 /* http request to Airtable  */
-                HttpPost httpPost = new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id).concat("/").concat(baseTable)));
+                HttpPost httpPost = new HttpPost(uri);
                 httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
                 httpPost.addHeader("Content-Type", "application/json");
                 httpPost.setEntity(new StringEntity(jsonString, ContentType.APPLICATION_JSON));
