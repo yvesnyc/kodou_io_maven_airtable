@@ -13,6 +13,10 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -28,6 +32,11 @@ public final class App {
      * @param args The arguments of the program.
      */
     public static void main(String[] args) {
+
+        Map<String,String> form = new HashMap<String,String>();
+        form.put("s_name","me");
+        form.put("n_age", "44");
+        
         System.out.println("Hello World!");
     }
 
@@ -157,6 +166,75 @@ public final class App {
 
     }
 
+    /**
+     *  Convert a tuple into the appropriate representation for either Json String or Json Number
+     * @param name id of tuple
+     * @param value The value
+     * Return String - Either quoted or unquoted value String
+     */
+    public static String typeFormatByName(String name, String value) {
+        if (name.startsWith("s_")) {
+            return "\"" + value + "\"";
+        } else  {
+            return value;
+        }
+    }
+
+    /**
+     *  Send the Airtable record formatted in a Json String
+     * @param api_id Airtable api handle for the account
+     * @param api_key Airtable api key
+     * @param baseTable Name of base table we want to write to
+     * @param record A Map<String,String> representing Airtable field names, values and types, sent from a Html Form.
+     *               Names are prefixed by a type indication, i.e., n_age,  s_name, for a number age and string name.
+     *               The form values are scalars so we only need string or number type info. The type is needed for
+     *               proper Airtable field Json values representation. Json strings are surrounded by quotes, numbers are not.
+     *  Return int - Either a http return code from Airtable or -1 if something else went wrong
+     */
+    public static int addFormXXToAirtable(String api_id, String api_key, String baseTable, Map<String,String> record) {
+
+        // Convert name/value pairs to Json string
+
+        // Get a List of names
+        List<String> nameList = new ArrayList<String>(record.keySet());
+
+        // Build the Json string
+        StringBuilder recordBuilder = new StringBuilder();
+
+        record.forEach((name,value) -> {
+            if (recordBuilder.length() == 0) {// First one
+                recordBuilder.append("\"" + name.substring(2) + "\"" + ":" +  typeFormatByName(name,value));
+            } else { // Append another field
+                recordBuilder.append("," + "\"" + name.substring(2) + "\"" + ":" +  typeFormatByName(name,value));
+            }
+        });
+
+        // Complete the Airtable Json
+        String json = "{\"records\" : [ { \"fields\" : { " + recordBuilder.toString() + " }";
+
+
+        /* client for http calls */
+        try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()) {
+
+            /* http request to Airtable  */
+            HttpPost httpPost = new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id).concat("/").concat(baseTable)));
+            httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
+            httpPost.addHeader("Content-Type", "application/json");
+            httpPost.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
+
+            try (CloseableHttpResponse response1 = httpclient.execute(httpPost)) {
+                return response1.getCode();
+            }
+
+        } catch (IOException ex) {
+            /*
+            Return a -1 if something other than an http error code results. Could have been an IO failure
+            */
+
+            return -1;
+        }
+    }
+
     /** 
      *  Send the Airtable record formatted in a Json String
      * @param api_id Airtable api handle for the account
@@ -165,13 +243,13 @@ public final class App {
      * @param jsonFormat A JSON String with the record to be written to Airtable
      *  Return int - Either a http return code from Airtable or -1 if something else went wrong
     */
-    public static int addFormXXToAirtable(String api_id, String api_key, String baseTable, String jsonFormat) {
+    public static int addFormXXJsonToAirtable(String api_id, String api_key, String baseTable, String jsonFormat) {
 
         /* client for http calls */
         try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()) {
 
             /* http request to Airtable  */
-            HttpPost httpPost = new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id)));
+            HttpPost httpPost = new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id).concat("/").concat(baseTable)));
             httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
             httpPost.addHeader("Content-Type", "application/json");
             httpPost.setEntity(new StringEntity(jsonFormat, ContentType.APPLICATION_JSON));
