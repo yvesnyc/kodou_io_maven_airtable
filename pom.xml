@@ -59,6 +59,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven-surefire-plugin.version}</version>
       </plugin>
+      <!--
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
@@ -126,14 +127,15 @@
           </execution>
         </executions>
       </plugin>
-        <plugin>
+      <-->
+      <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
                 <source>11</source>
                 <target>11</target>
             </configuration>
-        </plugin>
+      </plugin>
     </plugins>
   </build>
   <reporting>
