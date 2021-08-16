@@ -1,6 +1,8 @@
 package com.yvesnyc;
 
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.primitives.Ints;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.DefaultRedirectStrategy;
@@ -33,11 +35,25 @@ public final class App {
      */
     public static void main(String[] args) {
 
+        // Test addFormXXJsonToAirtable
         Map<String,String> form = new HashMap<String,String>();
         form.put("s_name","me");
         form.put("n_age", "44");
-        
-        System.out.println("Hello World!");
+        form.put("notype", "none");
+
+        // test
+        ObjectMapper mapper = new ObjectMapper();
+        String jsonFormat = "{}";
+
+        try {
+           jsonFormat = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(form);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            System.exit(-1);
+        }
+
+        int test = addFormXXJsonToAirtable("api_id","api_key", "test", jsonFormat);
+
+        System.out.println("Done!");
     }
 
     /** 
@@ -173,7 +189,8 @@ public final class App {
      * Return String - Either quoted or unquoted value String
      */
     public static String typeFormatByName(String name, String value) {
-        if (name.startsWith("s_")) {
+        // If encoded type is String or no type at all, it is surrounded by quotes
+        if (name.startsWith("s_") || name.charAt(1) != '_') {
             return "\"" + value + "\"";
         } else  {
             return value;
@@ -240,10 +257,46 @@ public final class App {
      * @param api_id Airtable api handle for the account
      * @param api_key Airtable api key
      * @param baseTable Name of base table we want to write to
-     * @param jsonFormat A JSON String with the record to be written to Airtable
+     * @param jsonFormat A JSON String with type encoded field names and String fields values
      *  Return int - Either a http return code from Airtable or -1 if something else went wrong
     */
     public static int addFormXXJsonToAirtable(String api_id, String api_key, String baseTable, String jsonFormat) {
+
+        // Convert the json fields to type based on name type hints
+        TypeReference<HashMap<String, String>> typeRef = new TypeReference<HashMap<String, String>>() {};
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        // Json fields will be assigned to a Map
+        Map<String, String> mapOfJson = null;
+
+        try {
+            mapOfJson = mapper.readValue(jsonFormat, typeRef);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            return -1;
+        }
+
+        // Get a List of names
+        List<String> nameList = new ArrayList<String>(mapOfJson.keySet());
+
+        // Build the new typed Json string
+        StringBuilder recordBuilder = new StringBuilder();
+
+        // Add field names to String without type prefix. Set values either with or without quotes
+        mapOfJson.forEach((name,value) -> {
+            String newType = typeFormatByName(name,value);
+            String newName = (name.charAt(1) == '_') ? name.substring(2) : name;
+
+            if (recordBuilder.length() == 0) {// First one
+                recordBuilder.append("\"" + newName + "\"" + ":" +  newType);
+            } else { // Append another field
+                recordBuilder.append("," + "\"" + newName + "\"" + ":" +  newType);
+            }
+        });
+
+        // Complete the Airtable Json
+        String jsonTyped = "{\"records\" : [ { \"fields\" : { " + recordBuilder.toString() + " }";
+
 
         /* client for http calls */
         try (CloseableHttpClient httpclient = HttpClients.custom().setRedirectStrategy(new DefaultRedirectStrategy()).build()) {
@@ -252,7 +305,7 @@ public final class App {
             HttpPost httpPost = new HttpPost(URI.create("https://api.airtable.com/v0/".concat(api_id).concat("/").concat(baseTable)));
             httpPost.addHeader("Authorization", "Bearer ".concat(api_key));
             httpPost.addHeader("Content-Type", "application/json");
-            httpPost.setEntity(new StringEntity(jsonFormat, ContentType.APPLICATION_JSON));
+            httpPost.setEntity(new StringEntity(jsonTyped, ContentType.APPLICATION_JSON));
 
             try (CloseableHttpResponse response1 = httpclient.execute(httpPost)) {
                 return response1.getCode();
