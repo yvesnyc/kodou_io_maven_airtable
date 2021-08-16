@@ -10,7 +10,6 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.client5.http.entity.mime.StringBody;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
 import java.io.IOException;
@@ -186,7 +185,7 @@ public final class App {
      *  Convert a tuple into the appropriate representation for either Json String or Json Number
      * @param name id of tuple
      * @param value The value
-     * Return String - Either quoted or unquoted value String
+     * @return  Either quoted or unquoted value String
      */
     public static String typeFormatByName(String name, String value) {
         // If encoded type is String or no type at all, it is surrounded by quotes
@@ -195,6 +194,47 @@ public final class App {
         } else  {
             return value;
         }
+    }
+
+    /**
+     *
+     * @param jsonFormat json String with field names encoded with type info
+     * @return json String with field values quote surrounded or not. Field names without type codes
+     */
+    public static String decodeTypeEncodedJson(String jsonFormat) {
+        // Convert the json fields to type based on name type hints
+        TypeReference<HashMap<String, String>> typeRef = new TypeReference<HashMap<String, String>>() {};
+
+        ObjectMapper mapper = new ObjectMapper();
+
+        // Json fields will be assigned to a Map
+        Map<String, String> mapOfJson = null;
+
+        try {
+            mapOfJson = mapper.readValue(jsonFormat, typeRef);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            return "";
+        }
+
+        // Get a List of names
+        List<String> nameList = new ArrayList<String>(mapOfJson.keySet());
+
+        // Build the new typed Json string
+        StringBuilder recordBuilder = new StringBuilder();
+
+        // Add field names to String without type prefix. Set values either with or without quotes
+        mapOfJson.forEach((name,value) -> {
+            String newType = typeFormatByName(name,value);
+            String newName = (name.charAt(1) == '_') ? name.substring(2) : name;
+
+            if (recordBuilder.length() == 0) {// First one
+                recordBuilder.append("\"" + newName + "\"" + ":" +  newType);
+            } else { // Append another field
+                recordBuilder.append("," + "\"" + newName + "\"" + ":" +  newType);
+            }
+        });
+
+        return recordBuilder.toString();
     }
 
     /**
@@ -257,45 +297,18 @@ public final class App {
      * @param api_id Airtable api handle for the account
      * @param api_key Airtable api key
      * @param baseTable Name of base table we want to write to
-     * @param jsonFormat A JSON String with type encoded field names and String fields values
-     *  Return int - Either a http return code from Airtable or -1 if something else went wrong
+     * @param jsonFormat A JSON String with type encoded field names and String field values
+     * @return Either a http return code from Airtable or -1 if something else went wrong
     */
     public static int addFormXXJsonToAirtable(String api_id, String api_key, String baseTable, String jsonFormat) {
 
-        // Convert the json fields to type based on name type hints
-        TypeReference<HashMap<String, String>> typeRef = new TypeReference<HashMap<String, String>>() {};
+        // Transform json String to decode the typed fields
+        String record = decodeTypeEncodedJson(jsonFormat);
 
-        ObjectMapper mapper = new ObjectMapper();
-
-        // Json fields will be assigned to a Map
-        Map<String, String> mapOfJson = null;
-
-        try {
-            mapOfJson = mapper.readValue(jsonFormat, typeRef);
-        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
-            return -1;
-        }
-
-        // Get a List of names
-        List<String> nameList = new ArrayList<String>(mapOfJson.keySet());
-
-        // Build the new typed Json string
-        StringBuilder recordBuilder = new StringBuilder();
-
-        // Add field names to String without type prefix. Set values either with or without quotes
-        mapOfJson.forEach((name,value) -> {
-            String newType = typeFormatByName(name,value);
-            String newName = (name.charAt(1) == '_') ? name.substring(2) : name;
-
-            if (recordBuilder.length() == 0) {// First one
-                recordBuilder.append("\"" + newName + "\"" + ":" +  newType);
-            } else { // Append another field
-                recordBuilder.append("," + "\"" + newName + "\"" + ":" +  newType);
-            }
-        });
+        if (record == "") return -1;
 
         // Complete the Airtable Json
-        String jsonTyped = "{\"records\" : [ { \"fields\" : { " + recordBuilder.toString() + " }";
+        String jsonTyped = "{\"records\" : [ { \"fields\" : { " + record + " }";
 
 
         /* client for http calls */
