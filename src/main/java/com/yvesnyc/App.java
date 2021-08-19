@@ -36,8 +36,8 @@ public final class App {
 
         // Test addFormXXJsonToAirtable
         Map<String,String> form = new HashMap<String,String>();
-        form.put("s_name","me");
-        form.put("n_age", "44");
+        form.put("ss_name","me");
+        form.put("mn_age", "44");
         form.put("notype", "none");
 
         // test
@@ -182,24 +182,43 @@ public final class App {
     }
 
     /**
-     *  Convert a tuple into the appropriate representation for either Json String or Json Number
+     *  Convert a tuple into the appropriate representation for Json String, Json Number, or Boolean.
+     *  The first code is for singular or multiple, meaning, either a value or an singleton array
+     *  example: ms_Name : ["Bob"] or ss_Name "Bob"
      * @param name id of tuple
      * @param value The value
      * @return  Either quoted or unquoted value String
      */
-    public static String typeFormatByName(String name, String value) {
+    public static void typeFormatByName(String name, String value, String [] decoded) {
         // If encoded type is String or no type at all, it is surrounded by quotes
-        if (name.startsWith("s_") || name.charAt(1) != '_') {
-            return "\"" + value + "\"";
-        } else  {
-            return value;
+
+        // First decode for single or multiple Airtable types
+        if (name.matches("^s(s|n|b)_.+")) { // Single
+            decoded[0] = name.substring(3);
+            if (name.charAt(1) == 's') // String
+                decoded[1] = "\"" + value + "\"";
+            else
+                decoded[1] = value;
+            return;
+        } else if (name.matches("^m(s|n|b)_.+")) { // Mulitple
+            decoded[0] = name.substring(3);
+            if (name.charAt(1) == 's')  // String
+                decoded[1] = "[\"" + value + "\"]";
+            else
+                decoded[1] = "[" + value + "]";
+            return;
+        } else { // Uncoded, so just a default String
+            decoded[0] = name;
+            decoded[1] = "\"" + value + "\"";
+            return;
         }
+
     }
 
     /**
      *
      * @param jsonFormat json String with field names encoded with type info
-     * @return json String with field values quote surrounded or not. Field names without type codes
+     * @return json String with field values quote surrounded or not, single or multi. Field names without type codes
      */
     public static String decodeTypeEncodedJson(String jsonFormat) {
         // Convert the json fields to type based on name type hints
@@ -222,15 +241,18 @@ public final class App {
         // Build the new typed Json string
         StringBuilder recordBuilder = new StringBuilder();
 
+        // Storage for decoded type and name
+        String [] newType = new String [2];
+
         // Add field names to String without type prefix. Set values either with or without quotes
         mapOfJson.forEach((name,value) -> {
-            String newType = typeFormatByName(name,value);
-            String newName = (name.charAt(1) == '_') ? name.substring(2) : name;
+            typeFormatByName(name,value, newType);
+            String newName = newType[0];
 
             if (recordBuilder.length() == 0) {// First one
-                recordBuilder.append("\"" + newName + "\"" + ":" +  newType);
+                recordBuilder.append("\"" + newName + "\"" + ":" +  newType[1]);
             } else { // Append another field
-                recordBuilder.append("," + "\"" + newName + "\"" + ":" +  newType);
+                recordBuilder.append("," + "\"" + newName + "\"" + ":" +  newType[1]);
             }
         });
 
@@ -258,11 +280,17 @@ public final class App {
         // Build the Json string
         StringBuilder recordBuilder = new StringBuilder();
 
+        // Storage for decoded type and name
+        String [] newType = new String [2];
+
         record.forEach((name,value) -> {
+            typeFormatByName(name,value, newType);
+            String newName = newType[0];
+
             if (recordBuilder.length() == 0) {// First one
-                recordBuilder.append("\"" + name.substring(2) + "\"" + ":" +  typeFormatByName(name,value));
+                recordBuilder.append("\"" + newName + "\"" + ":" +  newType[1]);
             } else { // Append another field
-                recordBuilder.append("," + "\"" + name.substring(2) + "\"" + ":" +  typeFormatByName(name,value));
+                recordBuilder.append("," + "\"" + newName + "\"" + ":" +  newType[1]);
             }
         });
 
@@ -297,7 +325,7 @@ public final class App {
      * @param api_id Airtable api handle for the account
      * @param api_key Airtable api key
      * @param baseTable Name of base table we want to write to
-     * @param jsonFormat A JSON String with type encoded field names and String field values
+     * @param jsonFormat A JSON String with type encoded field names and String field values for Airtable records
      * @return Either a http return code from Airtable or -1 if something else went wrong
     */
     public static int addFormXXJsonToAirtable(String api_id, String api_key, String baseTable, String jsonFormat) {
