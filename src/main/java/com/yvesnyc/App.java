@@ -295,7 +295,7 @@ public final class App {
         });
 
         // Complete the Airtable Json
-        String json = "{\"records\" : [ { \"fields\" : { " + recordBuilder.toString() + " }";
+        String json = "{\"records\" : [ { \"fields\" : { " + recordBuilder.toString() + " } } ] }";
 
 
         /* client for http calls */
