@@ -336,7 +336,7 @@ public final class App {
         if (record == "") return -1;
 
         // Complete the Airtable Json
-        String jsonTyped = "{\"records\" : [ { \"fields\" : { " + record + " }";
+        String jsonTyped = "{\"records\" : [ { \"fields\" : { " + record + " } } ] }";
 
 
         /* client for http calls */
