@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>A form in the wild</title>
+</head>
+<body>
+<p>This web form can be anywhere. It sends the user input to an Airtable via kodou.io</p>
+<form action="http://api.kodou.io/library/callhttp?jwt=eyJ0eXAXXXXXXXXXXXXXX" method="post">
+    <input id="formAs" name="formAs" type="hidden" value="jsonstring">
+    <input id="sessionid" name="sessionid"  type="hidden" value="eyJ0eXXXXXXXXXX">
+
+    <ul>
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="ss_Name">
+        </div>
+        <div>
+            <label for="age">Age:</label>
+            <input type="number" id="age" name="sn_Age" min="1" max="120">
+        </div>
+
+        <div>
+            <input type="radio" id="male" name="ms_Gender" value="Male"
+               checked>
+            <label for="male">Male</label>
+        </div>
+        <div>
+            <input type="radio" id="female" name="ms_Gender" value="Female">
+            <label for="female">Female</label>
+        </div>
+
+        <div class="button">
+            <button type="submit">Submit</button>
+        </div>
+    </ul>
+
+</form>
+
+<p>
+    All form fields are text and need to be converted into an Airtable of the following column design
+    Name [Single line text], Age [Number], Gender [Multiple selection]. The Airtable API uses Json for data
+    representation so we need to properly format the Json for success. Therefore each form field needs to
+    detail a type specification for the eventual Airtable call.
+</p>
+<p>
+    The form field types must match the Airtable column data types. This is not handled by kodou since kodou does not
+    know about Airtable. It is handled by a kodou user who created a function for writing to Airtable with correct types.
+    kodou injested that function and now it is part of the library.
+    The user created a function that needs the type information for Airtable matched to the form fields.
+    The solution is simple, the form field follow a naming scheme that encodes Airtable type information.
+    Notice the first 3 letters of all field names are two characters followed by an underscore. The first character
+    specifies single or multiple data, the second character is the data type (s String, n Number, b Boolean).
+    This shows how flexible kodou is for handling different needs.
+</p>
+<p>
+    This form has a hidden field named 'formAs' with the value 'jsonstring', which library/callhttp interprets that
+    the form fields are to be treated as a single Json payload in kodou and as the last argument of the function
+    being called. This is a currying approach. The other option is formAs=parameters where field names match function
+    parameters.
+    sessionid is another hidden formfield. It references code (the function) in a kodou library (from open or proprietary sources).
+    and was created from an API call. All the kodou routing information is cryptographically embedded in the sessionid.
+    The first set of function parameters were bound (currying) when sessionid was created. Every kodou call using sessionid
+    has them set, so you just need the final argument which is the json string of form fields.
+</p>
+<p>
+    kodou.io is the API endpoint with a jwt token for authentication in the url. The library/callhttp
+    path is a special version of library/call. It incorporates http semantics such as form url encoding.
+</p>
+<p>
+    Where did the sessionid come from? The crypto encrypted function in kodou's library? These functions are
+    requested using kodou's setup urls such as library/setup. This path accepts kodou function url and arguments bindings
+    for function calls. The token returned is the sessionid for subsequent calls.
+    The jwt token value is assigned to each user from kodou.
+</p>
+</body>
+</html>

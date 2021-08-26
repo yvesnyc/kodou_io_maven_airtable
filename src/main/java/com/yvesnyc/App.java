@@ -46,6 +46,7 @@ public final class App {
 
         try {
            jsonFormat = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(form);
+
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             System.exit(-1);
         }
@@ -217,12 +218,12 @@ public final class App {
 
     /**
      *
-     * @param jsonFormat json String with field names encoded with type info
+     * @param jsonFormat json String with a 'fields' object of form field names encoded with type info
      * @return json String with field values quote surrounded or not, single or multi. Field names without type codes
      */
     public static String decodeTypeEncodedJson(String jsonFormat) {
         // Convert the json fields to type based on name type hints
-        TypeReference<HashMap<String, String>> typeRef = new TypeReference<HashMap<String, String>>() {};
+        TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
 
         ObjectMapper mapper = new ObjectMapper();
 
@@ -230,7 +231,8 @@ public final class App {
         Map<String, String> mapOfJson = null;
 
         try {
-            mapOfJson = mapper.readValue(jsonFormat, typeRef);
+            Map<String,Object> map = mapper.readValue(jsonFormat, typeRef);
+            mapOfJson = (HashMap<String,String>) map.get("fields"); // The json has an object named 'fields' that has the form fields
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             return "";
         }
